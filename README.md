@@ -41,7 +41,7 @@ The script will try to guess your username based on the currently logged in user
 The script tries to infer the domain name from OS information, but this guess can bee overridden using the `-d` or `--domain` parameter. Legal values are *polhus* and *jypo*.
 
 ### Token duration 
-The default token duration is 3600 seconds, aka an hour. This is not much, but reflects the default in iAM. If you have configured the role to allow longer session durations, you probably also want this setting to be higher. (And if you are very carefull you might choose a lower value.) Specify seconds. 28800 is 8 hours. 
+The default token duration is 3600 seconds, aka an hour. This is not much, but reflects the default in iAM. If you have configured the role to allow longer session durations, you probably also want this setting to be higher. (And if you are very carefull you might choose a lower value.) Specify seconds. 28800 is 8 hours but it must be less than or equal to 43200. 
 
 ### Filter 
 If you are a member of many ad-connected groups you might choose to apply a filter using `-f` or `--filter`. The filter is applied as simple in-strings for the arns returned. (So `-f kitprod` will only show roles where `kitprod` is contained in the ARN.) If the filter only match a single role login will happen without further user interaction, why 
