@@ -1,5 +1,5 @@
-#!/usr/bin/python 
- 
+#!/usr/bin/env python3
+
 import argparse
 import sys 
 import boto3
@@ -58,17 +58,11 @@ class CommandLineArguments:
 		self.parser = argparse.ArgumentParser()
 		self.parser.add_argument("-p", "--profile", help="Specify which profile name to store settings in.", default="default")
 		self.parser.add_argument("-u", "--user", help="Specify username to user. Don't specify any domain information", default=getpass.getuser())
-		self.parser.add_argument("-d", "--domain", help="Specify domain", default=self.__userdomain())
+		self.parser.add_argument("-d", "--domain", help="Specify domain. Defaults to the userdomain environment and if not polhus", default=os.environ.get('userdomain', "polhus"))
 		self.parser.add_argument("-a", "--ask", help="Ask user for all values. Defaults from other command line arguments", action='store_true')
 		self.parser.add_argument("-td", "--tokenDuration", help="Token duration in seconds. Default is 3600 which is the default in AWS, but generally speaking longer durations are more convenient.", default="3600")
 		self.parser.add_argument("-f", "--filter", help="Filter for returned role values. Specify full name (or unique match) to avoid selecting role and login directly.", default = "")
 		self.args = self.parser.parse_args()
-
-	def __userdomain(self):
-		if 'userdomain' in os.environ:
-			return os.environ['userdomain'].lower()
-		else:
-			return 'polhus'
 
 	def getProfile(self):
 		return self.args.profile
@@ -89,6 +83,39 @@ class CommandLineArguments:
 		return self.args.filter
 
 
+class AwsConfigFile:
+	def __init__(self, profile, configfile = '/.aws/credentials', region = 'eu-west-1', outputformat = 'json'):
+		self.__profile = profile
+		# awsconfigfile: The file where this script will store the temp credentials under the saml profile 
+		self.__awsconfigfile = configfile
+		# region: The default AWS region that this script will connect to for all API calls 
+		self.__region = region
+		# output format: The AWS CLI output format that will be configured in the saml profile (affects subsequent CLI calls) 
+		self.__outputformat = outputformat
+		self.filename = expanduser("~") + configfile
+		pass
+
+	def update(self, credentials):
+		"""Update configuration file with security credentials from STS client"""
+		# Read in the existing config file
+		config = configparser.RawConfigParser()
+		config.read(self.filename)
+		
+		# Put the credentials into a specific profile instead of clobbering
+		# the default credentials
+		if not config.has_section(self.__profile):
+			config.add_section(self.__profile)
+		
+		config.set(self.__profile, 'output', self.__outputformat)
+		config.set(self.__profile, 'region', self.__region)
+		config.set(self.__profile, 'aws_access_key_id', token['Credentials']['AccessKeyId'])
+		config.set(self.__profile, 'aws_secret_access_key', token['Credentials']['SecretAccessKey'])
+		config.set(self.__profile, 'aws_session_token', token['Credentials']['SessionToken'])
+		
+		# Write the updated config file
+		with open(self.filename, 'w+') as configfile:
+			config.write(configfile)
+
 ################################################################################
 # Functions 
 
@@ -102,26 +129,14 @@ def getAssertionFromResponse(response):
 	    if(inputtag.get('name') == 'SAMLResponse'): 
 	        #print(inputtag.get('value')) 
 	        assertion = inputtag.get('value')
-	return assertion;
+	return assertion
  
 ################################################################################
 
 ##########################################################################
 # Variables 
 commandLineArguments = CommandLineArguments()
- 
-# region: The default AWS region that this script will connect 
-# to for all API calls 
-region = 'eu-west-1' 
- 
-# output format: The AWS CLI output format that will be configured in the 
-# saml profile (affects subsequent CLI calls) 
-outputformat = 'json'
- 
-# awsconfigfile: The file where this script will store the temp 
-# credentials under the saml profile 
-awsconfigfile = '/.aws/credentials'
- 
+  
 # SSL certificate verification: Whether or not strict certificate 
 # verification is done, False should only be used for dev/test 
 sslverification = True 
@@ -134,7 +149,7 @@ idpentryurl = 'https://sts.rootdom.dk/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=
 # Get the federated credentials from the user
 settings = ConfigSettings(commandLineArguments)
 print('')
-print('Will use the username {0}'.format(settings.getUsername()))
+print('Will use the username {}'.format(settings.getUsername()))
 settings.askPassword()
 
 # Initiate session handler 
@@ -159,7 +174,7 @@ awsroles = []
 try:
 	root = ET.fromstring(base64.b64decode(assertion))
 except: 
-	print('An exception occurred using NTLM negotiation. retrying with post to sts.rootdom.dk');
+	print('An exception occurred using NTLM negotiation. retrying with post to sts.rootdom.dk')
 	payload = {'UserName': settings.getUsername(), 'Password': settings.getPassword(), 'optionForms': 'FormsAuthentication' }
 	session.auth = None
 	session.get(url = idpentryurl, headers = headers, verify = sslverification)
@@ -228,31 +243,12 @@ token = conn.assume_role_with_saml(RoleArn = role_arn, PrincipalArn = principal_
 
 print(token)
 # Write the AWS STS token into the AWS credential file
-home = expanduser("~")
-filename = home + awsconfigfile
- 
-# Read in the existing config file
-config = configparser.RawConfigParser()
-config.read(filename)
- 
-# Put the credentials into a specific profile instead of clobbering
-# the default credentials
-if not config.has_section(settings.getProfile()):
-    config.add_section(settings.getProfile())
- 
-config.set(settings.getProfile(), 'output', outputformat)
-config.set(settings.getProfile(), 'region', region)
-config.set(settings.getProfile(), 'aws_access_key_id', token['Credentials']['AccessKeyId'])
-config.set(settings.getProfile(), 'aws_secret_access_key', token['Credentials']['SecretAccessKey'])
-config.set(settings.getProfile(), 'aws_session_token', token['Credentials']['SessionToken'])
- 
-# Write the updated config file
-with open(filename, 'w+') as configfile:
-    config.write(configfile)
+awsCondigFile = AwsConfigFile(settings.getProfile())
+awsCondigFile.update(token)
 
 # Give the user some basic info as to what has just happened
 print('\n\n----------------------------------------------------------------')
-print('Your new access key pair has been stored in the AWS configuration file {0} under the saml profile.'.format(filename))
+print('Your new access key pair has been stored in the AWS configuration file {0} under the saml profile.'.format(awsCondigFile.filename))
 print('Note that it will expire at {0}.'.format(token['Credentials']['Expiration']))
 print('After this time you may safely rerun this script to refresh your access key pair.')
 print('To use this credential call the AWS CLI with the --profile option (e.g. aws --profile saml ec2 describe-instances).')

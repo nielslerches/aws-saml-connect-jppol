@@ -27,6 +27,21 @@ pip install requests_ntlm
 pip install bs4
 ```
 
+## Using a Python virtual environment to handle requirements and isolation
+
+Create a Python virtual environment like:
+
+python3 -m venv .env
+
+Activate the virtual environment
+
+source .env/bin/activate
+
+Install requirements into the virtual environment:
+
+pip install -r requirements.txt
+
+
 ## Installation
 
 Copy this directory to `c:\program files\aws-login` and add the directory to `%PATH%`.

@@ -2,3 +2,5 @@
 *.swp
 *~
 .pip-install
+.env
+.vscode
