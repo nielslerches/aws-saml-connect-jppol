@@ -130,7 +130,25 @@ def getAssertionFromResponse(response):
 	        #print(inputtag.get('value')) 
 	        assertion = inputtag.get('value')
 	return assertion
- 
+
+
+def account_information(session, assertion):
+	response = session.post("https://signin.aws.amazon.com/saml", data={"SAMLResponse": assertion})
+	soup = BeautifulSoup(response.text, features="html.parser")
+	account_elements = soup.find_all("div", class_="saml-account")
+	for account_element in account_elements:
+		account_name_element = account_element.find("div", class_="saml-account-name")
+		if account_name_element is None:
+			continue
+		account_name = account_name_element.get_text().replace("Account: ", "")
+		print(account_name)
+		role_elements = account_element.find_all("div", class_="saml-role")
+		for role_element in role_elements:
+			role_name = role_element.find("label").get_text()
+			role_arn = role_element.find("input")["value"]
+			print(role_name + " - " + role_arn)
+	pass
+
 ################################################################################
 
 ##########################################################################
@@ -176,6 +194,7 @@ assertion = getAssertionFromResponse(response)
 unfilteredawsroles = []
 awsroles = []
 try:
+	print(base64.b64decode(assertion))
 	root = ET.fromstring(base64.b64decode(assertion))
 except: 
 	print('An exception occurred using NTLM negotiation. retrying with post to sts.rootdom.dk')
@@ -192,6 +211,8 @@ username = '##############################################'
 password = '##############################################'
 del username
 del password
+
+account_information(session, assertion)
 
 for saml2attribute in root.iter('{urn:oasis:names:tc:SAML:2.0:assertion}Attribute'): 
     if (saml2attribute.get('Name') == 'https://aws.amazon.com/SAML/Attributes/Role'): 
