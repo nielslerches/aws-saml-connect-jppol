@@ -157,11 +157,15 @@ session = requests.Session()
  
 # Programatically get the SAML assertion 
 # Set up the NTLM authentication handler by using the provided credential 
-session.auth = HttpNtlmAuth(settings.getUsername(), settings.getPassword(), session) 
+#session.auth = HttpNtlmAuth(settings.getUsername(), settings.getPassword(), session) 
  
 # Opens the initial AD FS URL and follows all of the HTTP302 redirects 
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0'}
-response = session.get(idpentryurl, headers=headers, verify=sslverification) 
+#response = session.get(idpentryurl, headers=headers, verify=sslverification) 
+#session.auth = None
+session.get(url = idpentryurl, headers = headers, verify = sslverification)
+payload = {'UserName': settings.getUsername(), 'Password': settings.getPassword(), 'optionForms': 'FormsAuthentication' }
+response = session.post(url = idpentryurl, headers=headers, verify=sslverification, data = payload)
  
 # Debug the response if needed 
 print(response)
@@ -175,13 +179,13 @@ try:
 	root = ET.fromstring(base64.b64decode(assertion))
 except: 
 	print('An exception occurred using NTLM negotiation. retrying with post to sts.rootdom.dk')
-	payload = {'UserName': settings.getUsername(), 'Password': settings.getPassword(), 'optionForms': 'FormsAuthentication' }
-	session.auth = None
-	session.get(url = idpentryurl, headers = headers, verify = sslverification)
-	response = session.post(url = idpentryurl, headers=headers, verify=sslverification, data = payload)
-	assertion = getAssertionFromResponse(response)
-	root = ET.fromstring(base64.b64decode(assertion))
-	print(root)
+#	payload = {'UserName': settings.getUsername(), 'Password': settings.getPassword(), 'optionForms': 'FormsAuthentication' }
+#	session.auth = None
+#	session.get(url = idpentryurl, headers = headers, verify = sslverification)
+#	response = session.post(url = idpentryurl, headers=headers, verify=sslverification, data = payload)
+#	assertion = getAssertionFromResponse(response)
+#	root = ET.fromstring(base64.b64decode(assertion))
+#	print(root)
 
 # Overwrite and delete the credential variables, just for safety
 username = '##############################################'
