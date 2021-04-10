@@ -21,6 +21,7 @@ class ConfigSettings:
 		self.filter = commandLineArguments.getFilter()
 		self.tokenDuration = commandLineArguments.getTokenDuration()
 		self.profile = commandLineArguments.getProfile()
+		self.shortlisting = commandLineArguments.getShort()
 		if commandLineArguments.getAsk(): self.askUser()
 
 	def askUser(self):
@@ -46,11 +47,14 @@ class ConfigSettings:
 		return self.password 
  
 	def askPassword(self): 
-		self.password = getpass.getpass()
-		
+		self.password = getpass.getpass()	
 
 	def getProfile(self):
 		return self.profile
+
+	@property
+	def short_listing(self):
+		return self.shortlisting
 
 class CommandLineArguments: 
 	def __init__(self): 
@@ -61,6 +65,7 @@ class CommandLineArguments:
 		self.parser.add_argument("-a", "--ask", help="Ask user for all values. Defaults from other command line arguments", action='store_true')
 		self.parser.add_argument("-td", "--tokenDuration", help="Token duration in seconds. Default is 3600 which is the default in AWS, but generally speaking longer durations are more convenient.", default="3600")
 		self.parser.add_argument("-f", "--filter", help="Filter for returned role values. Specify full name (or unique match) to avoid selecting role and login directly.", default = "")
+		self.parser.add_argument("-s", "--short", help="When listing account for selection only show the role ARN", action='store_true')
 		self.args = self.parser.parse_args()
 
 	def getProfile(self):
@@ -81,6 +86,8 @@ class CommandLineArguments:
 	def getFilter(self):
 		return self.args.filter
 
+	def getShort(self):
+		return self.args.short
 
 class AwsConfigFile:
 	def __init__(self, profile, configfile = '/.aws/credentials', region = 'eu-west-1', outputformat = 'json'):
@@ -223,14 +230,22 @@ for awsrole in unfilteredawsroles:
 # otherwise just proceed 
 print("" )
 if len(awsroles) > 1:
-    role_accounts = account_information(session, assertion)
-    i = 0
-    print("Please choose the role you would like to assume:" )
-    for awsrole in awsroles:
-        role_arn = awsrole.split(',')[0]
-        account = role_accounts[role_arn]
-        print('[', i, ']: ', awsrole.split(',')[0] + ' (' + account[0] + ')')
-        i += 1 
+    if settings.short_listing:
+        i = 0
+        print("Please choose the role you would like to assume:" )
+        for awsrole in awsroles:
+            role_arn = awsrole.split(',')[0]
+            print('[', i, ']: ', role_arn)
+            i += 1 
+    else:
+        role_accounts = account_information(session, assertion)
+        i = 0
+        print("Please choose the role you would like to assume:" )
+        for awsrole in awsroles:
+            role_arn = awsrole.split(',')[0]
+            account = role_accounts[role_arn]
+            print('[', i, ']: ', awsrole.split(',')[0] + ' (' + account[0] + ')')
+            i += 1 
 
     print("Selection: ", )
     selectedroleindex = input() 
