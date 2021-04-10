@@ -133,6 +133,7 @@ def getAssertionFromResponse(response):
 
 
 def account_information(session, assertion):
+	result = {}
 	response = session.post("https://signin.aws.amazon.com/saml", data={"SAMLResponse": assertion})
 	soup = BeautifulSoup(response.text, features="html.parser")
 	account_elements = soup.find_all("div", class_="saml-account")
@@ -141,13 +142,12 @@ def account_information(session, assertion):
 		if account_name_element is None:
 			continue
 		account_name = account_name_element.get_text().replace("Account: ", "")
-		print(account_name)
 		role_elements = account_element.find_all("div", class_="saml-role")
 		for role_element in role_elements:
 			role_name = role_element.find("label").get_text()
 			role_arn = role_element.find("input")["value"]
-			print(role_name + " - " + role_arn)
-	pass
+			result[role_arn] = (account_name, role_name)
+	return result	
 
 ################################################################################
 
@@ -212,7 +212,6 @@ password = '##############################################'
 del username
 del password
 
-account_information(session, assertion)
 
 for saml2attribute in root.iter('{urn:oasis:names:tc:SAML:2.0:assertion}Attribute'): 
     if (saml2attribute.get('Name') == 'https://aws.amazon.com/SAML/Attributes/Role'): 
@@ -237,11 +236,14 @@ for awsrole in unfilteredawsroles:
 # If I have more than one role, ask the user which one they want, 
 # otherwise just proceed 
 print("" )
-if len(awsroles) > 1: 
-    i = 0 
+if len(awsroles) > 1:
+    role_accounts = account_information(session, assertion)
+    i = 0
     print("Please choose the role you would like to assume:" )
-    for awsrole in awsroles: 
-        print('[', i, ']: ', awsrole.split(',')[0] )
+    for awsrole in awsroles:
+        role_arn = awsrole.split(',')[0]
+        account = role_accounts[role_arn]
+        print('[', i, ']: ', awsrole.split(',')[0] + ' (' + account[0] + ')')
         i += 1 
 
     print("Selection: ", )
