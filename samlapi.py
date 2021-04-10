@@ -14,7 +14,6 @@ from os.path import expanduser
 from urllib.parse import urlparse, urlunparse 
 from requests_ntlm import HttpNtlmAuth
 
-######
 class ConfigSettings:
 	def __init__(self, commandLineArguments):
 		self.username = commandLineArguments.getUser() 
@@ -116,8 +115,6 @@ class AwsConfigFile:
 		with open(self.filename, 'w+') as configfile:
 			config.write(configfile)
 
-################################################################################
-# Functions 
 
 def getAssertionFromResponse(response):
 	assertion = ''
@@ -149,10 +146,7 @@ def account_information(session, assertion):
 			result[role_arn] = (account_name, role_name)
 	return result	
 
-################################################################################
 
-##########################################################################
-# Variables 
 commandLineArguments = CommandLineArguments()
   
 # SSL certificate verification: Whether or not strict certificate 
@@ -161,8 +155,6 @@ sslverification = True
  
 # idpentryurl: The initial URL that starts the authentication process. 
 idpentryurl = 'https://sts.rootdom.dk/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices' 
-
-##########################################################################
 
 # Get the federated credentials from the user
 settings = ConfigSettings(commandLineArguments)
@@ -194,10 +186,10 @@ assertion = getAssertionFromResponse(response)
 unfilteredawsroles = []
 awsroles = []
 try:
-	print(base64.b64decode(assertion))
 	root = ET.fromstring(base64.b64decode(assertion))
 except: 
 	print('An exception occurred using NTLM negotiation. retrying with post to sts.rootdom.dk')
+	sys.exit(1)
 #	payload = {'UserName': settings.getUsername(), 'Password': settings.getPassword(), 'optionForms': 'FormsAuthentication' }
 #	session.auth = None
 #	session.get(url = idpentryurl, headers = headers, verify = sslverification)
@@ -205,12 +197,6 @@ except:
 #	assertion = getAssertionFromResponse(response)
 #	root = ET.fromstring(base64.b64decode(assertion))
 #	print(root)
-
-# Overwrite and delete the credential variables, just for safety
-username = '##############################################'
-password = '##############################################'
-del username
-del password
 
 
 for saml2attribute in root.iter('{urn:oasis:names:tc:SAML:2.0:assertion}Attribute'): 
@@ -262,7 +248,7 @@ elif len(awsroles) == 1:
     principal_arn = awsroles[0].split(',')[1]
 else:
     print ("No roles returned. (If you have provided a filter you might test the unfiltered result.")
-    quit()
+    sys.exit(0)
 
 # Use the assertion to get an AWS STS token using Assume Role with SAML
 conn = boto3.client('sts')
