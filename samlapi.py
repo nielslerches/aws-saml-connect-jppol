@@ -84,7 +84,7 @@ class CommandLineArguments:
 
 
 class AwsConfigFile:
-	def __init__(self, profile, configfile = '/.aws/credentials', region = 'eu-west-1', outputformat = 'json'):
+	def __init__(self, profile, configfile = os.getenv('AWS_SHARED_CREDENTIALS', '/.aws/credentials'), region = 'eu-west-1', outputformat = 'json'):
 		self.__profile = profile
 		# awsconfigfile: The file where this script will store the temp credentials under the saml profile 
 		self.__awsconfigfile = configfile
